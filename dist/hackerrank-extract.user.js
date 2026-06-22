@@ -13936,8 +13936,34 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		return Math.floor(Math.max(0, duration) / 1e3);
 	}
 	function waitForInitialData(proc) {
+		const retry = () => {
+			setTimeout(() => {
+				console.log("[tampermonkey] retry after failure");
+				const initialData = document.querySelector("#initialData");
+				if (initialData === null) {
+					console.log("[tampermonkey] can no longer find initialData after waiting");
+					return;
+				} else wrapped(initialData);
+			}, 50);
+		};
 		const wrapped = (el) => {
-			return proc(JSON.parse(decodeURIComponent(el.textContent)));
+			let decoded;
+			try {
+				decoded = decodeURIComponent(el.textContent);
+			} catch (e) {
+				console.log("[tampermonkey] failed to decode URI, found", el.textContent);
+				retry();
+				return;
+			}
+			let parsed;
+			try {
+				parsed = JSON.parse(decoded);
+			} catch (e) {
+				console.log("[tampermonkey] failed to parse JSON, found", decoded);
+				retry();
+				return;
+			}
+			return proc(parsed);
 		};
 		return () => {
 			console.log("[tampermonkey] start Leaderboard component");
@@ -13976,7 +14002,10 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 	});
 	var Data$1 = object({ community: object({ contests: object({
 		allContest: object({ contest: record(string(), object({
-			leaderboard_freeze_time: string(),
+			leaderboard_freeze_time: string().nullable().transform((time) => {
+				if (time === null) return "0";
+				else return time;
+			}),
 			epoch_endtime: number()
 		})) }),
 		contestLeaderboard: object({ didInvalidate: boolean() }).catchall(object({ leaderboard: object({ leaders: array(Contestant) }) }))

@@ -31,10 +31,37 @@ export function computeDuration(time: number, multiplier: number) {
 }
 
 export function waitForInitialData(proc: (obj: object) => void) {
+  const retry = () => {
+    setTimeout(() => {
+      console.log("[tampermonkey] retry after failure");
+      const initialData = document.querySelector("#initialData");
+      if (initialData === null) {
+        console.log("[tampermonkey] can no longer find initialData after waiting");
+        return;
+      } else {
+        wrapped(initialData);
+      }
+    }, 50);
+  };
   const wrapped = (el: Element) => {
-    const content = JSON.parse(decodeURIComponent(el.textContent));;
-    return proc(content);
-  }
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(el.textContent);
+    } catch (e) {
+      console.log("[tampermonkey] failed to decode URI, found", el.textContent);
+      retry();
+      return;
+    }
+    let parsed: object;
+    try {
+      parsed = JSON.parse(decoded);
+    } catch (e) {
+      console.log("[tampermonkey] failed to parse JSON, found", decoded);
+      retry();
+      return;
+    }
+    return proc(parsed);
+  };
 
   return () => {
     console.log("[tampermonkey] start Leaderboard component");

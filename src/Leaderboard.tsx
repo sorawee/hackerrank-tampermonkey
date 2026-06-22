@@ -32,7 +32,13 @@ const Data = z.object({
         contest: z.record(
           z.string(), 
           z.object({
-            leaderboard_freeze_time: z.string(),
+            leaderboard_freeze_time: z.string().nullable().transform((time) => {
+              if (time === null) {
+                return "0";
+              } else {
+                return time;
+              }
+            }),
             epoch_endtime: z.number(),
           })
         )

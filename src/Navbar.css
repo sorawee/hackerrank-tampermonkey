@@ -1,0 +1,22 @@
+.navbar {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+  background-color: #000;
+}
+
+.navbar button {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  background-color: inherit;
+  border: inherit;
+  color: white;
+}
+
+.navbar button:hover {
+  background: #555555;
+}
+
+.navbar button:active {
+  background: #444444;
+}

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       hackerrank-extract
 // @namespace  https://www.hackerrank.com/
-// @version    0.0.0
+// @version    1.0
 // @author     Sorawee Porncharoenwase
 // @match      https://www.hackerrank.com/contests/*/leaderboard
 // @match      https://www.hackerrank.com/contests/*/challenges/*/submissions/code/*
@@ -13913,9 +13913,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			})
 		});
 	}
-	var VIEW_MODE_KEY = "view-mode";
+	function tampermonkeyLog(s) {
+		console.log(`[tampermonkey] ${s}`);
+	}
 	function refreshPage() {
-		console.log("[tampermonkey] reloading...");
+		tampermonkeyLog("reloading...");
 		window.location.reload();
 	}
 	function formatTime(seconds) {
@@ -13935,63 +13937,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		const duration = multiplier * (time - Date.now());
 		return Math.floor(Math.max(0, duration) / 1e3);
 	}
-	function waitForInitialData(proc) {
-		const retry = () => {
-			setTimeout(() => {
-				console.log("[tampermonkey] retry after failure");
-				const initialData = document.querySelector("#initialData");
-				if (initialData === null) {
-					console.log("[tampermonkey] can no longer find initialData after waiting");
-					return;
-				} else wrapped(initialData);
-			}, 50);
-		};
-		const wrapped = (el) => {
-			let decoded;
-			try {
-				decoded = decodeURIComponent(el.textContent);
-			} catch (e) {
-				console.log("[tampermonkey] failed to decode URI, found", el.textContent);
-				retry();
-				return;
-			}
-			let parsed;
-			try {
-				parsed = JSON.parse(decoded);
-			} catch (e) {
-				console.log("[tampermonkey] failed to parse JSON, found", decoded);
-				retry();
-				return;
-			}
-			return proc(parsed);
-		};
-		return () => {
-			console.log("[tampermonkey] start Leaderboard component");
-			const initialData = document.querySelector("#initialData");
-			if (initialData !== null) {
-				console.log("[tampermonkey] found initialData right away");
-				wrapped(initialData);
-			} else {
-				console.log("[tampermonkey] wait for initialData through MutationObserver");
-				const obs = new MutationObserver((mutations) => {
-					for (const { addedNodes } of mutations) for (const node of addedNodes) {
-						if (!(node instanceof Element)) continue;
-						const initialData = node.matches("#initialData") ? node : node.querySelector("#initialData");
-						if (initialData !== null) {
-							obs.disconnect();
-							console.log("[tampermonkey] found initialData through MutationObserver");
-							wrapped(initialData);
-							return;
-						}
-					}
-				});
-				obs.observe(document.body, {
-					childList: true,
-					subtree: true
-				});
-			}
-		};
-	}
+	var VIEW_MODE_KEY = "view-mode";
+	var REFRESH_INTERVAL = 30;
 	var Contestant = object({
 		challenges: array(object({
 			slug: string(),
@@ -14002,10 +13949,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 	});
 	var Data$1 = object({ community: object({ contests: object({
 		allContest: object({ contest: record(string(), object({
-			leaderboard_freeze_time: string().nullable().transform((time) => {
-				if (time === null) return "0";
-				else return time;
-			}),
+			leaderboard_freeze_time: string().nullable().transform((time) => time === null ? "0" : time),
 			epoch_endtime: number()
 		})) }),
 		contestLeaderboard: object({ didInvalidate: boolean() }).catchall(object({ leaderboard: object({ leaders: array(Contestant) }) }))
@@ -14102,7 +14046,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		};
 	}
 	var ViewMode = _enum(["detailed", "condensed"]);
-	function Leaderboard() {
+	function Leaderboard({ input }) {
 		const [leaders, setLeaders] = (0, import_react.useState)([]);
 		const [times, setTimes] = (0, import_react.useState)(null);
 		const [durations, setDurations] = (0, import_react.useState)(null);
@@ -14111,8 +14055,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			return viewMode === null ? "detailed" : ViewMode.parse(viewMode);
 		});
 		const initialTime = (0, import_react.useRef)(Date.now());
-		const handleData = (obj) => {
-			const data = extractInitialData$1(obj);
+		(0, import_react.useEffect)(() => {
+			const data = extractInitialData$1(input);
 			setLeaders(data.contestants);
 			setTimes(data.times);
 			setDurations({
@@ -14120,8 +14064,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				freezeDuration: computeDuration(data.times.freezeTime, 1),
 				fetchDuration: computeDuration(data.times.fetchTime, -1)
 			});
-		};
-		(0, import_react.useEffect)(waitForInitialData(handleData), []);
+		}, [input]);
 		const timerRef = (0, import_react.useRef)(null);
 		const stopTime = () => {
 			if (timerRef.current !== null) clearInterval(timerRef.current);
@@ -14141,7 +14084,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			localStorage.setItem(VIEW_MODE_KEY, mode);
 		}, [mode]);
 		(0, import_react.useEffect)(() => {
-			setTimeout(refreshPage, 30 * 1e3);
+			setTimeout(refreshPage, REFRESH_INTERVAL * 1e3);
 		}, []);
 		return (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [(0, import_jsx_runtime.jsx)(Navbar, { popLevel: 1 }), (0, import_jsx_runtime.jsxs)("div", {
 			className: "tamper-container",
@@ -14216,7 +14159,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 					style: { fontVariantNumeric: "tabular-nums" },
 					children: [
 						"This scoreboard will automatically refresh every ",
-						30,
+						REFRESH_INTERVAL,
 						" seconds. Last refresh: ",
 						durations === null ? computeDuration(initialTime.current, -1) : durations.fetchDuration,
 						" seconds ago."
@@ -14243,12 +14186,11 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 		if (submission === void 0) throw new Error("cannot find submission in JSON");
 		return submission;
 	}
-	function Submission() {
+	function Submission({ input }) {
 		const [submission, setSubmission] = (0, import_react.useState)(null);
-		const handleData = (obj) => {
-			setSubmission(extractInitialData(obj));
-		};
-		(0, import_react.useEffect)(waitForInitialData(handleData), []);
+		(0, import_react.useEffect)(() => {
+			setSubmission(extractInitialData(input));
+		}, [input]);
 		if (submission === null) return (0, import_jsx_runtime.jsx)("div", {
 			className: "tamper-container",
 			children: "Loading..."
@@ -14301,33 +14243,44 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			]
 		})] });
 	}
-	function App() {
-		return window.location.pathname.includes("/leaderboard") ? (0, import_jsx_runtime.jsx)(Leaderboard, {}) : (0, import_jsx_runtime.jsx)(Submission, {});
+	function App({ input }) {
+		return window.location.pathname.includes("/leaderboard") ? (0, import_jsx_runtime.jsx)(Leaderboard, { input }) : (0, import_jsx_runtime.jsx)(Submission, { input });
 	}
 	_css("#content{display:none}");
-	function whenBodyExists(callback) {
-		if (document.body !== null) {
-			console.log("[tampermonkey] found body right away");
-			callback();
-			return;
-		}
-		console.log("[tampermonkey] wait for body through MutationObserver");
-		const observer = new MutationObserver(() => {
-			if (document.body !== null) {
+	function whenReady(proc) {
+		const observer = new MutationObserver((mutations) => {
+			for (const { removedNodes } of mutations) for (const removedNode of removedNodes) if (removedNode instanceof HTMLElement && removedNode.matches("#initialData")) {
 				observer.disconnect();
-				console.log("[tampermonkey] found body through MutationObserver");
-				callback();
+				tampermonkeyLog("found initialData through MutationObserver");
+				proc(removedNode);
 			}
 		});
-		observer.observe(document.documentElement, { childList: true });
+		observer.observe(document.documentElement, {
+			childList: true,
+			subtree: true
+		});
 	}
-	console.log("[tampermonkey] start");
-	whenBodyExists(() => {
-		console.log("[tampermonkey] rendering React");
+	tampermonkeyLog("start");
+	whenReady((initialData) => {
+		let decoded;
+		try {
+			decoded = decodeURIComponent(initialData.textContent);
+		} catch (e) {
+			tampermonkeyLog(`failed to decode URI, found:\n\n${initialData.textContent}`);
+			throw new Error("bad");
+		}
+		let parsed;
+		try {
+			parsed = JSON.parse(decoded);
+		} catch (e) {
+			tampermonkeyLog(`failed to parse JSON, found\n\n${decoded}`);
+			throw new Error("bad");
+		}
+		tampermonkeyLog("load initialData successfully");
 		import_client.createRoot((() => {
 			const app = document.createElement("div");
 			document.body.prepend(app);
 			return app;
-		})()).render((0, import_jsx_runtime.jsx)(import_react.StrictMode, { children: (0, import_jsx_runtime.jsx)(App, {}) }));
+		})()).render((0, import_jsx_runtime.jsx)(import_react.StrictMode, { children: (0, import_jsx_runtime.jsx)(App, { input: parsed }) }));
 	});
 })();

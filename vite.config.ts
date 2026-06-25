@@ -16,6 +16,7 @@ export default defineConfig({
           'https://www.hackerrank.com/contests/*/leaderboard',
           'https://www.hackerrank.com/contests/*/challenges/*/submissions/code/*'
         ],
+        version: "1.0",
       },
     }),
   ],

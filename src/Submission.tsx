@@ -2,7 +2,6 @@ import "./Submission.css";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
-import { waitForInitialData } from "./base";
 
 const SubmissionData = z.object({
   status: z.string(),
@@ -39,14 +38,12 @@ function extractInitialData(content: object): SubmissionData {
   return submission;
 }
 
-function Submission() {
+function Submission({ input }: { input: object }) {
   const [submission, setSubmission] = useState<SubmissionData | null>(null);
 
-  const handleData = (obj: object) => {
-    setSubmission(extractInitialData(obj));
-  };
-
-  useEffect(waitForInitialData(handleData), []);
+  useEffect(() => {
+    setSubmission(extractInitialData(input));
+  }, [input]);
 
   if (submission === null) {
     return (

@@ -5,11 +5,11 @@ import Navbar from './Navbar';
 import { 
   computeDuration, 
   formatTime, 
-  REFRESH_INTERVAL, 
-  refreshPage, 
-  VIEW_MODE_KEY, 
-  waitForInitialData
+  refreshPage,
 } from './base';
+
+const VIEW_MODE_KEY = "view-mode";
+const REFRESH_INTERVAL = 30;
 
 const Challenge = z.object({
   slug: z.string(),
@@ -32,13 +32,9 @@ const Data = z.object({
         contest: z.record(
           z.string(), 
           z.object({
-            leaderboard_freeze_time: z.string().nullable().transform((time) => {
-              if (time === null) {
-                return "0";
-              } else {
-                return time;
-              }
-            }),
+            leaderboard_freeze_time: z.string().nullable().transform(
+              (time) => time === null ? "0" : time
+            ),
             epoch_endtime: z.number(),
           })
         )
@@ -209,7 +205,7 @@ function extractInitialData(content: object): FetchedData {
 const ViewMode = z.enum(["detailed", "condensed"]);
 type ViewMode = z.infer<typeof ViewMode>;
 
-function Leaderboard() {
+function Leaderboard({ input }: { input: object }) {
   const [leaders, setLeaders] = useState<Contestant[]>([]);
   const [times, setTimes] = useState<Times | null>(null);
   const [durations, setDurations] = useState<Durations | null>(null);
@@ -218,9 +214,9 @@ function Leaderboard() {
     return viewMode === null ? "detailed" : ViewMode.parse(viewMode);
   });
   const initialTime = useRef(Date.now());
-  
-  const handleData = (obj: object) => {
-    const data = extractInitialData(obj);
+
+  useEffect(() => {
+    const data = extractInitialData(input);
     setLeaders(data.contestants);
     setTimes(data.times);
     setDurations({
@@ -228,9 +224,7 @@ function Leaderboard() {
       freezeDuration: computeDuration(data.times.freezeTime, 1),
       fetchDuration: computeDuration(data.times.fetchTime, -1),
     });
-  };
-
-  useEffect(waitForInitialData(handleData), []);
+  }, [input]);
 
   const timerRef = useRef<null | number>(null);
 

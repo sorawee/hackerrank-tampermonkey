@@ -3,7 +3,7 @@
 // @namespace  https://www.hackerrank.com/
 // @version    1.0
 // @author     Sorawee Porncharoenwase
-// @match      https://www.hackerrank.com/contests/*/leaderboard
+// @match      https://www.hackerrank.com/contests/*/leaderboard*
 // @match      https://www.hackerrank.com/contests/*/challenges/*/submissions/code/*
 // @grant      GM_addStyle
 // @run-at     document-start

@@ -13,7 +13,7 @@ export default defineConfig({
         "run-at": "document-start",
         namespace: 'https://www.hackerrank.com/',
         match: [
-          'https://www.hackerrank.com/contests/*/leaderboard',
+          'https://www.hackerrank.com/contests/*/leaderboard*',
           'https://www.hackerrank.com/contests/*/challenges/*/submissions/code/*'
         ],
         version: "1.0",
